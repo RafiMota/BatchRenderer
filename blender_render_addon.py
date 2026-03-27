@@ -269,9 +269,13 @@ def rotate_objects_z(objects, degrees, pivot):
 # =========================================================================
 
 def run_render_process(context, settings):
-    # Resolve folder paths from settings (fall back to defaults if empty)
-    temp_path = bpy.path.abspath(settings.render_path_temp) if settings.render_path_temp.strip() else DEFAULT_RENDER_PATH_TEMP
-    output_path = bpy.path.abspath(settings.output_base_folder) if settings.output_base_folder.strip() else DEFAULT_OUTPUT_BASE_FOLDER
+    # Resolve folder paths based on custom folders toggle
+    if settings.use_custom_folders:
+        temp_path = bpy.path.abspath(settings.render_path_temp) if settings.render_path_temp.strip() else DEFAULT_RENDER_PATH_TEMP
+        output_path = bpy.path.abspath(settings.output_base_folder) if settings.output_base_folder.strip() else DEFAULT_OUTPUT_BASE_FOLDER
+    else:
+        temp_path = DEFAULT_RENDER_PATH_TEMP
+        output_path = DEFAULT_OUTPUT_BASE_FOLDER
     ensure_folders(temp_path, output_path)
     scene = context.scene
     
@@ -532,6 +536,18 @@ class SC_Settings(bpy.types.PropertyGroup):
         default=False,
     )
 
+    show_render_settings: bpy.props.BoolProperty(
+        name="Render Settings",
+        description="Show/hide render settings",
+        default=True,
+    )
+
+    use_custom_folders: bpy.props.BoolProperty(
+        name="Custom Folders",
+        description="Use custom folder paths instead of defaults",
+        default=False,
+    )
+
     enable_rotation: bpy.props.BoolProperty(name="Enable Rotation", default=False)
     rotation_angles: bpy.props.StringProperty(
         name="Angles (deg)",
@@ -570,29 +586,32 @@ class VIEW3D_PT_BatchRendererPanel(bpy.types.Panel):
         scene = context.scene
         sts = scene.batch_renderer_settings
 
-        # Settings
+        # Render Settings (Dropdown)
         box = layout.box()
-        box.label(text="Render Settings")
-        box.prop(sts, "palette_input")
-        box.prop(sts, "material_assign_mode")
+        row = box.row()
+        row.prop(sts, "show_render_settings", text="Render Settings", icon='TRIA_DOWN' if sts.show_render_settings else 'TRIA_RIGHT', emboss=False)
+        if sts.show_render_settings:
+            box.prop(sts, "palette_input")
+            box.prop(sts, "material_assign_mode")
 
-        box.prop(sts, "aspect_ratio")
+            box.prop(sts, "aspect_ratio")
 
-        row = box.row(align=True)
-        row.prop(sts, "res_x")
-        sub = row.row()
-        sub.prop(sts, "res_y")
-        # Disable manual height input when an aspect ratio is locked
-        sub.enabled = (sts.aspect_ratio == 'FREEFORM')
+            row = box.row(align=True)
+            row.prop(sts, "res_x")
+            sub = row.row()
+            sub.prop(sts, "res_y")
+            # Disable manual height input when an aspect ratio is locked
+            sub.enabled = (sts.aspect_ratio == 'FREEFORM')
 
-        box.prop(sts, "create_downscaled")
-        box.prop(sts, "cleanup_temp")
+            box.prop(sts, "create_downscaled")
+            box.prop(sts, "cleanup_temp")
 
-        # Custom Folders
+        # Custom Folders (Checkbox toggle)
         box_folders = layout.box()
-        box_folders.label(text="Custom Folders", icon='FILE_FOLDER')
-        box_folders.prop(sts, "render_path_temp")
-        box_folders.prop(sts, "output_base_folder")
+        box_folders.prop(sts, "use_custom_folders", icon='FILE_FOLDER')
+        if sts.use_custom_folders:
+            box_folders.prop(sts, "render_path_temp")
+            box_folders.prop(sts, "output_base_folder")
         
         # Rotation
         box_rot = layout.box()
